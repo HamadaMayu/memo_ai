@@ -36,50 +36,76 @@ python3 -m uvicorn api.index:app --reload --host 0.0.0.0
 
 起動時にターミナルに表示されるURLから、同一ネットワーク内のモバイルデバイスからもアクセス可能です。
 
+---
 
+# 🛠️ 開発者・講義向け資料 (Hack Guide)
 
+このアプリを改造したい人向けのガイドです。
+NotionとAIをつなぐ「ステートレス」なアーキテクチャを採用しています。
 
+## 1. アプリケーション概要 (Overview)
+- **役割**: Notionを記憶媒体とするAI秘書
+- **アーキテクチャ**:
+  `Frontend (ブラウザ)` ↔ `Backend (FastAPI)` ↔ `External (Notion / Gemini)`
+- **データ保存**: アプリ自体はデータベースを持ちません。すべてのデータはブラウザやNotionに保存されます。
 
+## 2. ディレクトリ構造 (Map)
+改造するファイルを探すための地図です。
 
-curl -s https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json | head -100
-    {
-      "id": "gemini/gemini-1.5-pro",
-      "name": "Gemini 1.5 Pro",
-      "provider": "Google",
-      "supports_vision": true,
-      "supports_json": true,
-      "cost_per_1k_tokens": {
-        "input": 0.00125,
-        "output": 0.005
-      }
-    },
-    {
-      "id": "gemini/gemini-2.0-flash",
-      "name": "Gemini 2.0 Flash",
-      "provider": "Google",
-      "supports_vision": true,
-      "supports_json": true,
-      "cost_per_1k_tokens": {
-        "input": 0.000075,
-        "output": 0.0003
-      }
-    },
+```text
+memo_ai/
+├── public/          (見た目と動き：フロントエンド)
+│   ├── index.html   (骨組み：画面のレイアウト)
+│   ├── style.css    (お化粧：色や配置のデザイン)
+│   └── script.js    (動き：AIへの送信、Notionへの保存処理)
+│
+├── api/             (頭脳と連携：バックエンド)
+│   ├── index.py     (指令塔：APIエンドポイントの定義)
+│   ├── ai.py        (脳みそ：AIプロンプトと連携処理)
+│   ├── notion.py    (手足：Notion APIとの通信)
+│   └── config.py    (設定：モデル定義など)
+│
+└── .env             (秘密鍵：APIキーなどのパスワード類)
+```
 
+## 3. データの流れ (Data Flow)
 
+### 💬 チャットの流れ
+1. **あなた**: メッセージを入力して送信
+2. **script.js**: `/api/chat` にテキストと画像を送る
+3. **index.py**: リクエストを受け取り、`ai.py` に依頼
+4. **ai.py**: Notionの情報をコンテキストに含めてAIに解析させる
+5. **画面**: AIの返答を表示
 
+### 💾 保存の流れ
+1. **あなた**: 吹き出しタップ →「Notionに追加」
+2. **script.js**: `/api/save` に保存データを送る
+3. **index.py**: 受け取ったデータを `notion.py` に渡す
+4. **notion.py**: Notion APIを使って実際にページやDBに行を追加
 
-https://aistudio.google.com/usage
-Gemini API のレート制限 無料枠
-モデル,カテゴリ,RPM_使用量,RPM_上限,TPM_使用量,TPM_上限,RPD_使用量,RPD_上限
-gemini-2.5-flash,テキスト出力モデル,5,5,2410,250000,23,20
-gemma-3-27b,その他のモデル,2,30,826,15000,2,14400
-gemini-2.5-flash-lite,テキスト出力モデル,0,10,0,250000,0,20
-gemini-2.5-flash-tts,マルチモーダル生成モデル,0,3,0,10000,0,10
-gemini-3-flash,テキスト出力モデル,0,5,0,250000,0,20
-gemini-robotics-er-1.5-preview,その他のモデル,0,10,0,250000,0,20
-gemma-3-12b,その他のモデル,0,30,0,15000,0,14400
-gemma-3-1b,その他のモデル,0,30,0,15000,0,14400
-gemma-3-2b,その他のモデル,0,30,0,15000,0,14400
-gemma-3-4b,その他のモデル,0,30,0,15000,0,14400
-gemini-embedding-1.0,その他のモデル,0,100,0,30000,0,1000
-gemini-2.5-flash-native-audio-dialog,Live API,0,無制限,0,1000000,0,無制限
+## 4. 改造ガイド (Level別)
+
+### Level 1 🐣 AIの性格を変える
+**ターゲット**: `public/script.js`
+AIへの「システムプロンプト（命令書）」を変更します。
+`12行目周辺` にある `DEFAULT_SYSTEM_PROMPT` を書き換えてみましょう。
+```javascript
+const DEFAULT_SYSTEM_PROMPT = `あなたは大阪弁の陽気なアシスタントです...`;
+```
+
+### Level 2 🎨 デザインを変える
+**ターゲット**: `public/style.css`
+色やボタンの形を変えます。
+例えば、自分のメッセージの背景色を変えるには `.chat-bubble.user` を探します。
+```css
+.chat-bubble.user {
+    background-color: #0084ff; /* ここを好きな色に */
+}
+```
+
+### Level 3 🔧 Notionへの保存項目を増やす
+**ターゲット**: `api/index.py` (SaveRequest), `public/script.js` (saveToDatabase)
+例えば「重要度」というセレクトボックスを追加したい場合：
+1. `index.html` に `<select>` を追加
+2. `script.js` でその値を取得して送信データに含める
+3. `api/index.py` で受け取れるようにする

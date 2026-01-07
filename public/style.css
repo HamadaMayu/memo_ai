@@ -109,6 +109,8 @@ body {
     font-size: 12px;
     cursor: pointer;
     opacity: 0;
+    pointer-events: none;
+    /* 見えない時はクリック不可 */
     transition: opacity 0.2s, right 0.2s;
     white-space: nowrap;
     z-index: 10;
@@ -116,6 +118,8 @@ body {
 
 .chat-bubble.show-actions .bubble-add-btn {
     opacity: 1;
+    pointer-events: auto;
+    /* 表示時のみクリック可能 */
     right: -130px;
 }
 

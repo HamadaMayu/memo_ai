@@ -8,6 +8,7 @@ const LAST_TARGET_KEY = 'memo_ai_last_target';
 const CHAT_HISTORY_KEY = 'memo_ai_chat_history';
 const LOCAL_PROMPT_PREFIX = 'memo_ai_prompt_';
 const SHOW_MODEL_INFO_KEY = 'memo_ai_show_model_info';
+const REFERENCE_PAGE_KEY = 'memo_ai_reference_page';
 
 const DEFAULT_SYSTEM_PROMPT = `優秀な秘書として、ユーザーのタスクを明確にする手伝いをすること。
 明確な実行できる タスク名に言い換えて。先頭に的確な絵文字を追加して
@@ -180,6 +181,19 @@ document.addEventListener('DOMContentLoaded', () => {
             showModelInfo = e.target.checked;
             localStorage.setItem(SHOW_MODEL_INFO_KEY, showModelInfo);
             renderChatHistory(); // Re-render to show/hide info
+        });
+    }
+
+    // Reference Page Toggle Logic
+    const referenceToggle = document.getElementById('referencePageToggle');
+    if (referenceToggle) {
+        const savedRefState = localStorage.getItem(REFERENCE_PAGE_KEY);
+        if (savedRefState !== null) {
+            referenceToggle.checked = savedRefState === 'true';
+        }
+        
+        referenceToggle.addEventListener('change', (e) => {
+            localStorage.setItem(REFERENCE_PAGE_KEY, e.target.checked);
         });
     }
     
