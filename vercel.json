@@ -1,5 +1,13 @@
 {
-  "buildCommand": "cp -r public/* . && echo 'Static files copied to root'",
-  "cleanUrls": true,
-  "trailingSlash": false
+    "rewrites": [
+        {
+            "source": "/api/(.*)",
+            "destination": "/api/index.py"
+        },
+        {
+            "source": "/(.*)",
+            "destination": "/public/$1"
+        }
+    ],
+    "outputDirectory": "public"
 }
