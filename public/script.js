@@ -15,7 +15,9 @@ const REFERENCE_PAGE_KEY = 'memo_ai_reference_page'; // 「ページを参照」
 // AIの基本的な役割定義。ターゲットごとに上書き可能です。
 const DEFAULT_SYSTEM_PROMPT = `優秀な秘書として、ユーザーのタスクを明確にする手伝いをすること。
 明確な実行できる タスク名に言い換えて。先頭に的確な絵文字を追加して
-画像の場合は、そこから何をしようとしているのか推定して、タスクにして。`;
+画像の場合は、そこから何をしようとしているのか推定して、タスクにして。
+会話的な返答はしない。
+返答は機械的に、タスク名としてふさわしい文字列のみを出力すること。`;
 
 // --- グローバル状態管理 (Global State) ---
 let chatHistory = [];  // UI表示用の全チャット履歴: [{type, message, properties, timestamp}]
@@ -1287,7 +1289,28 @@ async function handleTargetChange(targetId) {
     } catch(e) {
         console.error('[handleTargetChange Error]', e);
         formContainer.innerHTML = `<p class="error">スキーマ読み込み失敗: ${e.message}</p>`;
-        showToast("スキーマ読み込みエラー");
+        
+        // 初心者向けに具体的なエラーメッセージを表示
+        let userMessage = "スキーマ読み込みエラー";
+        
+        if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+            // サーバーが起動していない、またはネットワーク接続エラー
+            userMessage = "❌ サーバーに接続できません。サーバーが起動しているか確認してください";
+        } else if (e.message.includes('HTTPエラー 404')) {
+            // ページが見つからない
+            userMessage = "❌ ページが見つかりません。ページIDが正しいか確認してください";
+        } else if (e.message.includes('HTTPエラー 401') || e.message.includes('HTTPエラー 403')) {
+            // 認証エラー
+            userMessage = "❌ アクセス権限がありません。Notion APIキーとページの共有設定を確認してください";
+        } else if (e.message.includes('HTTPエラー 500') || e.message.includes('HTTPエラー 503')) {
+            // サーバーエラー
+            userMessage = "❌ サーバーでエラーが発生しました。しばらく待ってから再試行してください";
+        } else if (e.message.includes('HTTPエラー')) {
+            // その他のHTTPエラー
+            userMessage = `❌ エラーが発生しました: ${e.message}`;
+        }
+        
+        showToast(userMessage);
     }
 }
 

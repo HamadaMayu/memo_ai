@@ -47,42 +47,78 @@ async def lifespan(app: FastAPI):
     
     # 起動時のログ出力
     # アプリケーションの状態や環境情報をコンソールに表示して、デバッグを容易にします。
-    print("=" * 60)
-    print("🚀 Application Starting")
-    print("=" * 60)
-    print(f"VERCEL environment: {os.environ.get('VERCEL', 'not set')}")
-    print(f"Current working directory: {os.getcwd()}")
-    print(f"Python version: {os.sys.version}")
+    print("\n" + "=" * 70)
+    print("🚀 Memo AI サーバーを起動しています...")
+    print("=" * 70)
+    
+    # Vercel環境かローカル環境かを判定
+    is_vercel = os.environ.get('VERCEL')
+    if is_vercel:
+        print(f"📦 環境: Vercel (Production)")
+    else:
+        print(f"💻 環境: ローカル開発環境")
+    
+    print(f"📁 作業ディレクトリ: {os.getcwd()}")
+    print(f"🐍 Python バージョン: {os.sys.version.split()[0]}")
     
     # 静的ファイルディレクトリの存在確認
     # ローカル環境とVercel環境でパスが異なる可能性があるため、複数の候補をチェックします。
-    static_paths = ["public", ".vercel/output/static", "/var/task/public"]
-    for path in static_paths:
-        exists = os.path.exists(path)
-        print(f"Static path '{path}' exists: {exists}")
-        if exists and os.path.isdir(path):
-            try:
-                files = os.listdir(path)
-                print(f"  → Files in '{path}': {files[:5]}")  # 最初の5ファイルのみ表示
-            except Exception as e:
-                print(f"  → Error listing '{path}': {e}")
+    if not is_vercel:
+        # ローカル環境でのみ詳細チェック
+        static_paths = ["public"]
+        for path in static_paths:
+            exists = os.path.exists(path)
+            if exists and os.path.isdir(path):
+                try:
+                    files = os.listdir(path)
+                    print(f"📂 静的ファイル: {path}/ ({len(files)}個のファイル)")
+                except Exception as e:
+                    print(f"⚠️  静的ファイルの読み込みエラー: {e}")
     
-    print("=" * 60)
+    print("=" * 70)
     
-    try:
-        # ローカルIPアドレスの取得
-        # スマホなどから同じネットワーク内のPCで動いているサーバーにアクセスする際のURLを表示します。
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        local_ip = s.getsockname()[0]
-        s.close()
-        print(f"\n📱 Mobile Access: http://{local_ip}:8000\n")
-    except Exception:
-        print("\nCould not determine local IP for mobile access.\n")
+    # ローカルIPアドレスの取得と起動URL表示
+    # スマホなどから同じネットワーク内のPCで動いているサーバーにアクセスする際のURLを表示します。
+    if not is_vercel:
+        # ポート番号を環境変数またはコマンドライン引数から取得
+        # 1. PORT環境変数をチェック
+        # 2. コマンドライン引数の --port オプションをチェック
+        # 3. デフォルト値 8000 を使用
+        port = os.environ.get("PORT")
+        if not port:
+            import sys
+            # sys.argvから --port 引数を探す
+            for i, arg in enumerate(sys.argv):
+                if arg == "--port" and i + 1 < len(sys.argv):
+                    port = sys.argv[i + 1]
+                    break
+        if not port:
+            port = "8000"
+        
+        print("")
+        print("✅ サーバーが起動しました！")
+        print("")
+        print("📍 アクセスURL:")
+        print(f"   ├─ ローカル:    http://localhost:{port}")
+        
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+            s.close()
+            print(f"   └─ スマホから:  http://{local_ip}:{port}")
+        except Exception:
+            print("   └─ スマホから:  (IPアドレス取得失敗)")
+        
+        print("")
+        print("💡 サーバーを停止するには: Ctrl + C を押してください")
+        print("=")
 
-    # 必須環境変数のチェック
-    if not os.environ.get("NOTION_ROOT_PAGE_ID"):
-        print("WARNING: NOTION_ROOT_PAGE_ID not set.")
+    # 環境変数の簡易チェック
+    if not is_vercel:
+        page_id = os.environ.get("NOTION_ROOT_PAGE_ID", "")
+        if page_id and ("-" in page_id or "http" in page_id or len(page_id) < 20):
+            print(f"⚠️  NOTION_ROOT_PAGE_ID が不正な可能性: {page_id[:30]}... (ハイフン/URL除外, NotionページURLから32文字の英数字のみ抽出)")
     
     yield
     # yieldより後のコードはアプリケーション終了時に実行されます (シャットダウン処理)
@@ -118,7 +154,6 @@ def sanitize_image_data(text: str) -> str:
     # HTML形式のimgタグ (data URIスキーム) を削除: <img src="data:image/..." ...>
     text = re.sub(r'<img[^>]+src=["\']data:image\/[^"\']+["\'][^>]*>', '', text, flags=re.DOTALL)
     # 特定のマーカー文字列を除去
-    text = text.replace("[画像送信]", "").strip()
     text = text.replace("[画像送信]", "").strip()
     return text
 
@@ -169,25 +204,22 @@ class ChatRequest(BaseModel):
 
 # --- Endpoints ---
 
-@app.get("/")
-async def root():
-    """
-    ルートパスアクセス時の処理
-    
-    通常は index.html を返しますが、デプロイ環境(Vercel)とローカル環境で挙動を切り替えます。
-    """
-    from fastapi.responses import HTMLResponse
-    import os
-    
-    # Vercel環境では、静的ファイルはCDNによって配信されるため、
-    # APIサーバー側では明示的に index.html へリダイレクトさせます。
-    if os.environ.get("VERCEL"):
+# Vercel環境でのみルートハンドラを定義
+# ローカル環境では、app.mount による静的ファイル配信に任せる
+if os.environ.get("VERCEL"):
+    @app.get("/")
+    async def root():
+        """
+        Vercel環境専用のルートパスハンドラ
+        
+        Vercel環境では静的ファイルはCDNによって配信されるため、
+        APIサーバー側では明示的に index.html へリダイレクトさせます。
+        
+        ローカル環境ではこのハンドラは定義されず、
+        ファイル末尾の app.mount による静的ファイル配信が機能します。
+        """
         from fastapi.responses import RedirectResponse
         return RedirectResponse(url="/index.html")
-    else:
-        # ローカル開発環境では、後方の app.mount で静的ファイルが提供されるため、
-        # ここには通常到達しませんが、念のためフォールバックを用意します。
-        return HTMLResponse(content="<h1>Memo AI</h1><p>Please access via the static file server</p>")
 
 @app.get("/api/health")
 def health_check():
@@ -523,10 +555,12 @@ async def chat_endpoint(request: ChatRequest):
         system_prompt = request.system_prompt
         if not system_prompt:
              # デフォルトのペルソナ（秘書）設定
+             # Note: このプロンプトは public/script.js の DEFAULT_SYSTEM_PROMPT と同じ内容です
              system_prompt = """優秀な秘書として、ユーザーのタスクを明確にする手伝いをすること。
 明確な実行できる タスク名に言い換えて。先頭に的確な絵文字を追加して
 画像の場合は、そこから何をしようとしているのか推定して、タスクにして。
-応答は端的に、TODO名やタスク名としてのみ出力すること。
+会話的な返答はしない。
+返答は機械的に、タスク名としてふさわしい文字列のみを出力すること。
 """
         
         # 日時コンテキストの注入

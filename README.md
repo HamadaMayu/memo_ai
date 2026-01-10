@@ -1,46 +1,213 @@
-# Memo AI Launch Instructions
+# Memo AI セットアップ＆起動ガイド
+
+> **📢 重要なお知らせ**  
+> 2026/01/09 0:00以前にgitを取得した方は、Vercelデプロイの問題が解決されているため、最新版を再取得してください。
+
+---
+
+## 📋 目次
+1. [前提条件の確認](#前提条件の確認)
+2. [セットアップ手順](#セットアップ手順)
+3. [起動方法](#起動方法)
+4. [トラブルシューティング](#トラブルシューティング)
+
+---
+
+## 前提条件の確認
+
+### Python のインストール確認
+
+ターミナルで以下を実行してバージョン確認：
+
+```bash
+python --version
+または
+python3 --version
+```
+
+> **💡 Python 3.8以上が必要です**  
+> どちらか動作したコマンドを以降の手順で使用してください。  
+> コマンドが見つからない場合は[Python公式サイト](https://www.python.org/downloads/)からインストール。
+
+---
+
+## セットアップ手順
+
+### ステップ1: 仮想環境の作成
+
+プロジェクトのフォルダに移動して、以下のコマンドを実行します：
+
+> **� ここからは、先ほど確認した `python` または `python3` コマンドを使用してください**
+
+**先ほど `python3` が使えた場合:**
+```bash
+python3 -m venv venv
+```
+
+**先ほど `python` が使えた場合:**
+```bash
+python -m venv venv
+```
+
+### ステップ2: 仮想環境の有効化
+
+#### 📱 Mac / Linux の場合:
+```bash
+source venv/bin/activate
+```
+
+#### 🪟 Windows (コマンドプロンプト) の場合:
+```bash
+venv\Scripts\activate
+```
+
+#### 🪟 Windows (PowerShell) の場合:
+```bash
+venv\Scripts\Activate.ps1
+```
+
+> **✅ 成功の確認:**  
+> ターミナルの行頭に `(venv)` と表示されれば成功です！
+
+### ステップ3: 依存パッケージのインストール
+
+仮想環境を有効化した状態で、以下のコマンドを実行してください：
+
+```bash
+pip install -r requirements.txt
+```
 
 
-サンプルがVercelデプロイできない問題解決しました。
-2026/01/09 0:00以前にgitを取得した方は、サンプル git リポジトリを再取得してください。
+### ステップ4: 環境変数の設定
 
+1. プロジェクトフォルダに `.env` ファイルを作成します
+2. .env.exampleを参考に、以下の環境変数を設定してください：
 
+```env
+# Gemini API キー（必須）
+GEMINI_API_KEY=your_gemini_api_key_here
 
-## 前提条件
-- Python 3.8+ がインストールされていること
-- pip がインストールされていること
+# Notion API トークン（Notion連携を使う場合）
+NOTION_TOKEN=your_notion_token_here
+NOTION_DATABASE_ID=your_database_id_here
+```
 
-## セットアップ
+> **🔑 APIキーの取得方法:**
+> - **Gemini API**: [Google AI Studio](https://makersuite.google.com/app/apikey)
+> - **Notion API**: [Notion Developers](https://www.notion.so/my-integrations)
 
-1. 仮想環境の作成と有効化:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
+Notionページ IDの取得方法
+ページブロックを作成し、開く。
+notionページのURLのうち、ハイフンより後ろの部分
+www.notion.so/memoAI-2e137XXXXXXXXXXXXXff733 　　->　　 2e137XXXXXXXXXXXXXff733
+.envの NOTION_ROOT_PAGE_ID=に設定する。
 
-2. 依存関係のインストール:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. 環境変数の設定:
-   `.env` ファイルを作成し、必要な環境変数を設定してください（Notion APIキー、Gemini APIキーなど）。
+---
 
 ## 起動方法
 
-以下のコマンドを実行してサーバーを起動します:
+仮想環境を有効化した状態で、以下のコマンドでサーバーを起動します：
 
 ```bash
-python3 -m uvicorn api.index:app --reload --host 0.0.0.0
+python -m uvicorn api.index:app --reload --host 0.0.0.0
 ```
 
-## アクセス
+---
 
-ブラウザで以下のURLにアクセスしてください:
+### ❓ よくあるエラーと対処法
 
-- http://localhost:8000
+#### `No module named uvicorn`
+仮想環境を有効化して依存パッケージをインストール:
+```bash
+source venv/bin/activate  # Mac/Linux
+# または
+venv\Scripts\activate     # Windows
 
-起動時にターミナルに表示されるURLから、同一ネットワーク内のモバイルデバイスからもアクセス可能です。
+pip install -r requirements.txt
+```
+
+#### `Address already in use`
+ポート8000が使用中です。以下のいずれかを実行:
+
+**プロセスを終了:**
+```bash
+lsof -ti:8000 | xargs kill -9  # Mac/Linux
+```
+
+**別のポートを使用:**
+```bash
+# ポート番号を変更する場合は、PORT環境変数も設定してください
+# (起動メッセージで正しいポート番号が表示されます)
+
+# Mac/Linux (python3の場合)
+PORT=8001 python3 -m uvicorn api.index:app --reload --host 0.0.0.0 --port 8001
+
+# Mac/Linux (pythonの場合)
+PORT=8001 python -m uvicorn api.index:app --reload --host 0.0.0.0 --port 8001
+
+# Windows (コマンドプロンプト)
+set PORT=8001 && python3 -m uvicorn api.index:app --reload --host 0.0.0.0 --port 8001
+
+# Windows (PowerShell)
+$env:PORT=8001; python3 -m uvicorn api.index:app --reload --host 0.0.0.0 --port 8001
+
+# http://localhost:8001 でアクセス
+```
+
+---
+
+## ✅ アクセス方法
+
+サーバーが起動したら、ブラウザで以下のURLを開いてください:
+
+```
+http://localhost:8000
+```
+
+> **📱 スマートフォンからアクセスする場合:**  
+> 起動時にターミナルに表示される `http://192.168.x.x:8000` のようなURLを使うと、同一ネットワーク内のモバイルデバイスからアクセスできます。
+
+---
+
+## トラブルシューティング
+
+### ❌ `python3: command not found` と表示される (Mac/Linux)
+
+**解決策:** `python` コマンドを試してください:
+```bash
+python --version
+python -m venv venv
+```
+
+### ❌ `python: command not found` と表示される (Windows)
+
+**解決策:** Pythonが正しくインストールされているか確認してください:
+1. [Python公式サイト](https://www.python.org/downloads/)から最新版をダウンロード
+2. インストール時に「Add Python to PATH」にチェックを入れる
+
+### ❌ `Address already in use` エラー
+
+**意味:** ポート8000が既に使われています
+
+**解決策1:** 別のポートを使う
+```bash
+# Mac/Linux
+python3 run_server.py --port 8001
+
+# Windows
+python run_server.py --port 8001
+```
+
+**解決策2:** 使用中のプロセスを終了する (Mac/Linux)
+```bash
+lsof -ti:8000 | xargs kill -9
+```
+
+**解決策2:** 使用中のプロセスを終了する (Windows)
+```bash
+netstat -ano | findstr :8000
+taskkill /PID <プロセスID> /F
+```
 
 ---
 
