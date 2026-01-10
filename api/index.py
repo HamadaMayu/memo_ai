@@ -31,10 +31,27 @@ from api.models import get_available_models, get_text_models, get_vision_models
 from api.config import DEFAULT_TEXT_MODEL, DEFAULT_MULTIMODAL_MODEL
 
 
-# 環境変数の読み込み (.envファイルの内容をロード)
-if not Path(".env").exists():
-    raise FileNotFoundError("❌ .envファイルが見つかりません。プロジェクトのルートディレクトリに .env ファイルを作成してください。")
-load_dotenv()
+# 環境変数の読み込み
+# ローカル環境では.envファイルから読み込み、Vercel環境では環境変数から直接読み込み
+load_dotenv()  # .envファイルがあれば読み込む（なくてもエラーにしない）
+
+# 必須環境変数のチェック
+required_env_vars = {
+    "NOTION_API_KEY": "Notion APIキー",
+    "NOTION_ROOT_PAGE_ID": "NotionルートページID"
+}
+
+missing_vars = []
+for var_name, var_description in required_env_vars.items():
+    if not os.environ.get(var_name):
+        missing_vars.append(f"  - {var_name} ({var_description})")
+
+if missing_vars:
+    error_message = "❌ 必須の環境変数が設定されていません:\n" + "\n".join(missing_vars)
+    error_message += "\n\n設定方法:"
+    error_message += "\n  ローカル環境: .envファイルに上記の変数を追加してください"
+    error_message += "\n  Vercel環境: プロジェクト設定の環境変数に追加してください"
+    raise EnvironmentError(error_message)
 
 # --- グローバル変数 ---
 # アプリケーション全体で共有する設定値などを保持する辞書
